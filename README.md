@@ -225,6 +225,70 @@ lb_test_ro | session   | 1950
 | node1 Primary | lb_test | 1600 | R/W |
 | node2 + node3 Standby | lb_test_ro | 6000 | R-only |
 
+
+
+```bash
+#!/bin/bash
+set -e
+ulimit -n 65536
+
+HOST="127.0.0.1"
+PORT=6432
+USER="dbadmin"
+SCALE=100
+DURATION=160
+RESULT_DIR="/home/dbadmin/config/pgbouncer/test_results"
+TS=$(date +%Y%m%d_%H%M%S)
+
+mkdir -p "$RESULT_DIR"
+export PGPASSWORD="2222"
+
+echo "=== Test started: $(date) ==="
+
+/usr/pgsql-16/bin/pgbench \
+    -h "$HOST" -p "$PORT" -U "$USER" -d lb_test \
+    --client=1600 --jobs=8 --time="$DURATION" --scale="$SCALE" \
+    --file=/home/dbadmin/config/pgbouncer/test_write.sql \
+    --progress=10 \
+    2>&1 | tee "$RESULT_DIR/rw_${TS}.txt" &
+
+PID_RW=$!
+
+/usr/pgsql-16/bin/pgbench \
+    -h "$HOST" -p "$PORT" -U "$USER" -d lb_test_ro \
+    --client=6000 --jobs=32 --time="$DURATION" --scale="$SCALE" \
+    --file=/home/dbadmin/config/pgbouncer/test_read.sql \
+    --select-only \
+    --progress=10 \
+    2>&1 | tee "$RESULT_DIR/ro_${TS}.txt" &
+
+PID_RO=$!
+
+wait $PID_RW
+wait $PID_RO
+
+echo ""
+echo "=== R/W result (node1 Primary) ==="
+grep -E "tps|latency|transactions" "$RESULT_DIR/rw_${TS}.txt" | tail -5
+
+echo ""
+echo "=== R-only result (node2+node3 Standby) ==="
+grep -E "tps|latency|transactions" "$RESULT_DIR/ro_${TS}.txt" | tail -5
+
+echo ""
+echo "=== PgBouncer POOLS ==="
+/usr/pgsql-16/bin/psql -h "$HOST" -p "$PORT" -U "$USER" -d pgbouncer -c "SHOW POOLS;"
+
+echo ""
+echo "=== Test finished: $(date) ==="
+
+
+```
+
+
+
+
+
 ```bash
 ulimit -n 65536
 ./run_test.sh
