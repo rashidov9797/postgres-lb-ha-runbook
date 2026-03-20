@@ -22,7 +22,9 @@ This project documents a **Production-Grade PostgreSQL 18 High Availability setu
 
 Applications connect to a single PgBouncer endpoint. HAProxy transparently routes write traffic to the Primary and read traffic across Standbys via roundrobin.
 
-> No Kubernetes, no etcd — pure VM-based HA stack.
+
+<img width="743" height="707" alt="image" src="https://github.com/user-attachments/assets/694659fe-05c5-4f24-911a-e7bd65d05f17" />
+
 
 ---
 
